@@ -1,0 +1,32 @@
+version: '3'
+services:
+  # config-server
+  config-service:
+    build: .
+    ports:
+    - 8082:8082
+    - 2222:2222
+    environment:
+    - REDIS_PORT_6379_TCP_ADDR=redis
+    - JSONLOGSETTINGS=1
+    
+  #redis
+  redis:
+    image: redis:4.0.11-alpine
+    ports:
+      - 6379:6379
+    environment:
+      - JSONLOGSETTINGS=1
+    volumes:
+    - ~/Redis/data:/data
+    
+  # Redis-Commander   
+  redis-commander:
+    container_name: redis-commander
+    hostname: redis-commander
+    image: rediscommander/redis-commander:latest
+    restart: always
+    environment:
+    - REDIS_HOSTS=local:redis:6379
+    ports:
+    - 8081:8081
