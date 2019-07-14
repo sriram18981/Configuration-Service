@@ -1,4 +1,4 @@
-FROM  isl-dsdc.ca.com:5001/ca-standard-images/centos72-java8
+FROM  openjdk:12-jdk-oracle
 
 USER root
 
