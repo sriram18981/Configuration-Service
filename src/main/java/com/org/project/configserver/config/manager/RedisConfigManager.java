@@ -6,7 +6,6 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
 import org.springframework.data.redis.connection.DataType;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.ChannelTopic;
@@ -18,6 +17,7 @@ import org.springframework.web.client.RestTemplate;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.org.project.configserver.config.message.MessagePublisher;
@@ -36,20 +36,20 @@ public class RedisConfigManager {
 	private JsonObject config = null;
 
 	@Autowired
-	ApplicationContext context;
+	private MessagePublisher publisher;
 
 	@Autowired
-	RedisTemplate<String, Object> redisTemplate;
+	private RedisTemplate<String, Object> redisTemplate;
 
 	@Autowired
-	RestTemplate restTemplate;
+	private RestTemplate restTemplate;
 
 	/**
 	 * Get all the configuration stored in the Redis server
 	 * 
 	 * @return
 	 */
-	public JsonObject getConfig() {
+	public JsonObject loadConfig() {
 
 		if (config != null) {
 			return config;
@@ -113,24 +113,24 @@ public class RedisConfigManager {
 	 */
 	public String addSubscription(String endPoint) {
 		long response = redisTemplate.opsForSet().add(SUBSCRIPTIONS, endPoint);
-		
-		String message = (response == 0) ? String.format("Subscription already registered for %s", endPoint) 
-										   : String.format("Added subscription for %s", endPoint);
-		
+
+		String message = (response == 0) 
+							? String.format("Subscription already registered for %s", endPoint)
+									: String.format("Added subscription for %s", endPoint);
+
 		logger.info(message);
 		return message;
 	}
 
 	/**
-	 * Makes the config cache invalid and forces to fetch the config from Redis
-	 * again
+	 * Makes the configuration cache invalid and forces to fetch the configuration
+	 * from Redis again
 	 */
-	public void refreshConfig() {
+	public void forceRefreshConfig() {
 		config = null;
-		getConfig();
+		loadConfig();
 
-		MessagePublisher publisher = context.getBean("MessagePublisher", MessagePublisher.class);
-		publisher.publish(new ChannelTopic("config"), "config refreshed");
+		publisher.publish(new ChannelTopic("client"), "config refreshed");
 
 		logger.debug("Pushing the configuration to the subscribed clients");
 		pushConfigToSubscribers();
@@ -147,25 +147,46 @@ public class RedisConfigManager {
 		}
 
 		JsonArray subsciberUris = config.get(SUBSCRIPTIONS).getAsJsonArray();
-		logger.info("Got the subscribers list {}", subsciberUris);
+		logger.info("Got the subscribers list {}, now pushing the configuration to each one of them...", subsciberUris);
 
-		subsciberUris.forEach(uri -> {
-			try {
+		subsciberUris.forEach(this::pushConfig);
 
-				HttpHeaders headers = new HttpHeaders();
-				headers.setContentType(MediaType.APPLICATION_JSON);
+	}
 
-				HttpEntity<String> entity = new HttpEntity<>(config.toString(), headers);
-				Object response = restTemplate.postForObject(new URI(uri.getAsString()), entity, Object.class);
-				logger.info("successfully posted the config to {} and the response is  {}", uri, response);
+	/**
+	 * Push configuration to the subscriber
+	 * 
+	 * @param uri API end-point of the configuration subscriber
+	 */
+	private void pushConfig(JsonElement uri) {
+		try {
 
-			} catch (Exception e) {
-				// TODO need to identify recoverable errors and take action accordingly.
-				logger.error("something went wrong while pushing configuration to {}", uri, e);
-			}
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_JSON);
 
-		});
+			HttpEntity<String> entity = new HttpEntity<>(config.toString(), headers);
+			Object response = restTemplate.postForObject(new URI(uri.getAsString()), entity, Object.class);
 
+			logger.info("successfully posted the config to {} and the response is  {}", uri, response);
+
+		} catch (Exception e) {
+			// TODO need to identify recoverable errors and take action accordingly.
+			logger.error("something went wrong while pushing configuration to {}", uri, e);
+		}
+	}
+
+	/**
+	 * Make all instances of the configuration service refresh their configurations.
+	 */
+	public void refreshConfig() {
+		publishConfigUpdateEvent();
+	}
+
+	/**
+	 * Publish the "update" message to the "config" channel
+	 */
+	private void publishConfigUpdateEvent() {
+		publisher.publish(new ChannelTopic("config"), "update");
 	}
 
 }

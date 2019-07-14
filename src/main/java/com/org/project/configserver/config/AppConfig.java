@@ -16,7 +16,7 @@ import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.GsonHttpMessageConverter;
 import org.springframework.web.client.RestTemplate;
 
-import com.org.project.configserver.config.message.impl.MessageSubscriber;
+import com.org.project.configserver.config.message.impl.MessageSubscriberImpl;
 
 @Configuration
 @Import(Slf4jMDCFilterConfiguration.class)
@@ -50,12 +50,12 @@ public class AppConfig {
 
 	@Bean
 	public MessageListenerAdapter messageListener() {
-		return new MessageListenerAdapter(messageSubscriber());
+		return new MessageListenerAdapter(messageSubscriberImpl());
 	}
 
 	@Bean
-	public MessageSubscriber messageSubscriber() {
-		return new MessageSubscriber();
+	public MessageSubscriberImpl messageSubscriberImpl() {
+		return new MessageSubscriberImpl();
 	}
 
 	@Bean

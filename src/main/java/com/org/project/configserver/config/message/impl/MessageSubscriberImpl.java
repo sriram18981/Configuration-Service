@@ -18,8 +18,8 @@ import com.org.project.configserver.config.manager.RedisConfigManager;
  * @author Sriram Tanikella <sriram18981@gmail.com>
  *
  */
-public class MessageSubscriber implements MessageListener {
-	private static final Logger logger = LoggerFactory.getLogger(MessageSubscriber.class);
+public class MessageSubscriberImpl implements MessageListener {
+	private static final Logger logger = LoggerFactory.getLogger(MessageSubscriberImpl.class);
 	
 	@Autowired
 	RedisConfigManager redisManager;
@@ -42,7 +42,7 @@ public class MessageSubscriber implements MessageListener {
         		&& StringUtils.equalsIgnoreCase("update", message.toString())) {
         	
         	logger.info("Recieved message from Redis to refresh the configuration.");
-        	redisManager.refreshConfig();
+        	redisManager.forceRefreshConfig();
         }
     }
 	

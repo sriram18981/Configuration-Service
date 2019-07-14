@@ -33,7 +33,7 @@ public class ConfigController {
 	
 	
 	@Autowired
-	RedisConfigManager redisManager;
+	private RedisConfigManager redisManager;
 	
 	/**
 	 * Ping URL to see if the service is up and running
@@ -53,7 +53,7 @@ public class ConfigController {
 	public JsonObject getConfig() {
 		logger.debug("got a reqeust for the global configuration");
 		
-		JsonObject config = redisManager.getConfig();
+		JsonObject config = redisManager.loadConfig();
 		logger.info("got the configuration {}", config);
 		
 		return config;
@@ -91,6 +91,15 @@ public class ConfigController {
 		logger.info("configuration recieved thru subscription {}", config);
 	}
 
+	
+	/**
+	 * Utility method to force a config refresh thru API
+	 */
+	@PostMapping(path = "refresh")
+	public void refreshConfig() {
+		logger.info("Refreshing the configurations...");
+		redisManager.refreshConfig();
+	}
 	
 
 }
